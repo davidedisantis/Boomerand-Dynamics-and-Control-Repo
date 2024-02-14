@@ -62,15 +62,16 @@ Jj = [
     ];
 
 % Launch conditions
-U0 = [25*cosd(30); 25*sind(30); 0];  % Initial throw speed in inertial frame [m/s]
-omega0 = [0; 0; 10*pi*2];            % Initial angular speed [rad/s]
-PHI0 = 70;                           % Initial roll angle (Between non-spinning frame and inertial) [deg]
+ThAng = 30;                                 % Throw angle from East direction
+U0 = [25*cosd(ThAng); 25*sind(ThAng); 0];   % Initial throw speed in inertial frame [m/s]
+omega0 = [0; 0; 10*pi*2];                   % Initial angular speed [rad/s]
+PHI0 = 70;                                  % Initial roll angle (Between non-spinning frame and inertial) [deg]
 PHI0 = deg2rad(PHI0);
-PSI0 = 240;                           % Initial yaw angle (Between non-spinning frame and inertial) [deg]
+PSI0 = 240;                                 % Initial yaw angle (Between non-spinning frame and inertial) [deg]
 PSI0 = deg2rad(PSI0);
-THETA0 = 0;                          % Initial pitch angle (Between non-spinning frame and inertial) [deg]
+THETA0 = 0;                                 % Initial pitch angle (Between non-spinning frame and inertial) [deg]
 THETA0 = deg2rad(THETA0);  
-R_pos0 = [0; 0; 1.5];                % Initial position in inertial frame
+R_pos0 = [0; 0; 1.5];                       % Initial position in inertial frame
 
 % Parameters for integration of aerodynamic forces
 n = 50; % Number of intervals
@@ -414,3 +415,77 @@ plot3(R_inertial1(1,1), R_inertial1(1,2), R_inertial1(1,3), 'go', ...
     R_inertial1(end,1), R_inertial1(end,2), R_inertial1(end,3), 'ro')
 title('3D Trajectory')
 grid on
+
+%% Comparison with Vassberg model
+close all
+Cl0 = 0.15;         % Approx coefficient of lift at 0 deg AoA
+Rp = 3*m*sin(PHI0)/(rho*S*Cl0);
+
+f = @(x,y) (x-Rp*cosd(ThAng + 90)).^2 + (y - Rp*sind(ThAng + 90)).^2 - Rp^2;
+
+fimplicit(f, [-2*Rp 2*Rp])
+figure(1);
+hold on
+plot(R_inertial(1,1),R_inertial(1,2), 'go', ...
+    R_inertial(:,1), R_inertial(:,2), 'k-', ...
+    R_inertial(end,1), R_inertial(end,2), 'ro')
+xlabel('Displacement along x [m]')
+ylabel('Displacement along y [m]')
+legend('Vassberg model', '', 'Computed trajectory', '')
+axis equal
+
+%%
+Cl0 = 0.15;         % Approx coefficient of lift at 0 deg AoA
+% Starting point
+x1 = R_pos0(1);
+y1 = R_pos0(2);
+
+% Desired point to reach
+x2 = 5;
+y2 = 2;
+
+% Approximate boomerang flight path radius (works well for half a
+% revolution)
+
+Rp = 3*m*sin(PHI0)/(rho*S*Cl0);
+
+% Finding possible centers of the circumference
+syms a b
+[a,b] = solve((a-x1)^2+(b-y1)^2 == Rp^2,(a-x2)^2+(b-y2)^2==Rp^2,a,b);
+
+f = @(x) -sqrt(abs(Rp^2 - (x-a(2)).^2)) + b(2);
+
+xplot = linspace(min(x1,x2), max(x1,x2), 1000);
+yplot = f(xplot);
+
+plot(xplot,yplot)
+
+%plot arc
+% syms x y
+% fimplicit((x-a(1))^2 + (y-b(1))^2 == Rp^2, [min(x1,x2),max(x1,x2), ...
+%     min(y1,y2),max(y1,y2)])
+% axis equal
+% 
+% figure
+% fimplicit((x-a(2))^2 + (y-b(2))^2 == Rp^2, [min(x1,x2),max(x1,x2), ...
+%     min(y1,y2),max(y1,y2)])
+% figure
+% fimplicit((x-a(2))^2 + (y-b(2))^2 == Rp^2, [-2*Rp 2*Rp -2*Rp 2*Rp])
+% axis equal
+%%
+%first input
+a=[0 1]; %P1
+b=[1 0]; %P2
+r=1;     %radius
+%next solution
+syms x y
+[x,y]=solve((x-a(1))^2+(y-a(2))^2==r^2,(x-b(1))^2+(y-b(2))^2==r^2,x,y);
+%plot arc
+syms x y
+ezplot((x-x(1))^2+(y-y(1))^2==r^2,[min(a(1),b(1)),max(a(1),b(1)), ...
+    min(a(2),b(2)),max(a(2),b(2))])
+axis equal
+figure
+ezplot((x-x(2))^2+(y-y(2))^2==r^2,[min(a(1),b(1)),max(a(1),b(1)), ...
+    min(a(2),b(2)),max(a(2),b(2))])
+axis equal

@@ -12,8 +12,8 @@ clc
 
 tic
 % Simulation parameters
-t = 5;                     % Simulation time [s]
-dt = .1e-3;                 % Timestep for fixed-step simulation [s]
+t = 3.8;                     % Simulation time [s]
+dt = 1e-3;                 % Timestep for fixed-step simulation [s]
 minstep = 1e-5;            % Min timestep for variable-step simulation [s]
 maxstep = 1.66e-4;         % Max timestep for variable-step simulation [s]
 servo_rpm = 500;           % Rotation speed of servo
@@ -45,12 +45,13 @@ X_des = [x_des, y_des];
 
 % PID parameters
 Kp = 1; 
+Ki = 1.2;
 Kd = 0.8;
 
 % Planetary parameters
-g = 9.81;       % Gravity acceleration [m/s^2]
-rho = 1.22;     % Air density at sea level [kg/m^3]
-v_wind = [-1.5; 1.5; 0];
+g = 9.81;               % Gravity acceleration [m/s^2]
+rho = 1.22;             % Air density at sea level [kg/m^3]
+v_wind = [-3; 0; 0];  % Wind velocity [m/s]
 
 % Boomerang design parameters
 l_blade = 3e-1; % Length of one blade [m]
@@ -194,9 +195,11 @@ toc
 R_inertial = zeros(length(sim.tout),3);
 u = zeros(length(sim.tout),3);
 normU = zeros(length(sim.tout),1);
-load('Wind_wxy_Traj_XYZ-U-tout.mat')
-x_w = R_inertial_wxy(:,1);
-y_w = R_inertial_wxy(:,2);
+load('Wind_2wx_Traj_XYZ-U-tout.mat')
+load('Pitch_control_trajectory_2wx.mat')
+
+x_w = R_inertial_wx(:,1);
+y_w = R_inertial_wx(:,2);
 
 z_und = R_inertial1(:,3) + 3.5;
 for i = 1:length(sim.tout)
@@ -206,30 +209,6 @@ for i = 1:length(sim.tout)
 end
 
 figure(1)
-plot(R_inertial(1,1),R_inertial(1,3), 'go', ...
-    R_inertial(:,1), R_inertial(:,3), 'k-', ...
-    R_inertial(end,1), R_inertial(end,3), 'ro')
-xlabel('Displacement along x [m]')
-ylabel('Displacement along z [m]')
-title('Trajectory - back view (xz plane)')
-hold on
-plot(x_des, z_und, 'b-');
-legend('', 'Actual trajectory', '', 'Undisturbed trajectory', 'Location','southeast')
-axis equal
-
-figure(2)
-plot(R_inertial(1,2),R_inertial(1,3), 'go', ...
-    R_inertial(:,2), R_inertial(:,3), 'k-', ...
-    R_inertial(end,2), R_inertial(end,3), 'ro')
-xlabel('Displacement along y [m]')
-ylabel('Displacement along z [m]')
-title('Trajectory - side view (yz plane)')
-hold on
-plot(y_des, z_und, 'b-');
-legend('', 'Actual trajectory', '', 'Undisturbed trajectory', 'Location','southeast')
-axis equal
-
-figure(3)
 plot(R_inertial(1,1),R_inertial(1,2), 'go', ...
     R_inertial(:,1), R_inertial(:,2), 'k-', ...
     R_inertial(end,1), R_inertial(end,2), 'ro')
@@ -237,11 +216,51 @@ xlabel('Displacement along x [m]')
 ylabel('Displacement along y [m]')
 title('Trajectory - top view (xy plane)')
 hold on
-plot(x_des,y_des, 'b');
+plot(R_inertial_c(:,1), R_inertial_c(:,2), 'k-.')
+hold on
+plot(x_des,y_des, 'b-');
 hold on
 plot(x_w, y_w, 'r--');
-legend('', 'Actual trajectory', '', 'Desired trajectory', 'Uncontrolled trajectory', 'Location','southeast')
+legend('', 'PID trajectory', '', 'PD trajectory', 'Desired trajectory','Uncontrolled trajectory', 'Location','southeast')
 axis equal
+
+% figure(1)
+% plot(R_inertial(1,1),R_inertial(1,3), 'go', ...
+%     R_inertial(:,1), R_inertial(:,3), 'k-', ...
+%     R_inertial(end,1), R_inertial(end,3), 'ro')
+% xlabel('Displacement along x [m]')
+% ylabel('Displacement along z [m]')
+% title('Trajectory - back view (xz plane)')
+% hold on
+% plot(x_des, z_und, 'b-');
+% legend('', 'Actual trajectory', '', 'Undisturbed trajectory', 'Location','southeast')
+% axis equal
+
+% figure(2)
+% plot(R_inertial(1,2),R_inertial(1,3), 'go', ...
+%     R_inertial(:,2), R_inertial(:,3), 'k-', ...
+%     R_inertial(end,2), R_inertial(end,3), 'ro')
+% xlabel('Displacement along y [m]')
+% ylabel('Displacement along z [m]')
+% title('Trajectory - side view (yz plane)')
+% hold on
+% plot(y_des, z_und, 'b-');
+% legend('', 'Actual trajectory', '', 'Undisturbed trajectory', 'Location','southeast')
+% axis equal
+% 
+% figure(3)
+% plot(R_inertial(1,1),R_inertial(1,2), 'go', ...
+%     R_inertial(:,1), R_inertial(:,2), 'k-', ...
+%     R_inertial(end,1), R_inertial(end,2), 'ro')
+% xlabel('Displacement along x [m]')
+% ylabel('Displacement along y [m]')
+% title('Trajectory - top view (xy plane)')
+% hold on
+% plot(x_des,y_des, 'b');
+% hold on
+% plot(x_w, y_w, 'r--');
+% legend('', 'Actual trajectory', '', 'Desired trajectory', 'Uncontrolled trajectory', 'Location','southeast')
+% axis equal
 %% Plot and compare energies
 load('Uncontrolled_Energies.mat')
 figure(1)

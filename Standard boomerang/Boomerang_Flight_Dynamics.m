@@ -12,8 +12,8 @@ clc
 
 tic
 % Simulation parameters
-t = 5;                     % Simulation time [s]
-
+t = 6;                     % Simulation time [s]
+dt = 1e-3;                 % Fixed-step timestep
 minstep = 1e-5;            % Min timestep for variable-step simulation [s]
 maxstep = 1.66e-4;         % Max timestep for variable-step simulation [s]
 
@@ -46,8 +46,9 @@ gamma = 120;    % Folding angle [deg]
 gamma = deg2rad(gamma);
 betaj = 0;      % Wing coning angle 
 betaj = deg2rad(betaj);
-thetaj = 0;     % Wing pitch angle
-thetaj = deg2rad(thetaj);
+thetaj0 = 3;     % Wing pitch angle at root
+thetaj0 = deg2rad(thetaj0);
+k = -0.1745;    % thetaj = thetaj0 + k*wingspan
 
 % Moments of inertia of a single blade
 I_xi = 1.88e-3; 
@@ -62,10 +63,10 @@ Jj = [
     ];
 
 % Launch conditions
-ThAng = 30;                                 % Throw angle from East direction
-U0 = [25*cosd(ThAng); 25*sind(ThAng); 0];   % Initial throw speed in inertial frame [m/s]
+ThAng = 45;                                 % Throw angle from East direction
+U0 = [22*cosd(ThAng); 22*sind(ThAng); 10];   % Initial throw speed in inertial frame [m/s]
 omega0 = [0; 0; 10*pi*2];                   % Initial angular speed [rad/s]
-PHI0 = 70;                                  % Initial roll angle (Between non-spinning frame and inertial) [deg]
+PHI0 = 77;                                  % Initial roll angle (Between non-spinning frame and inertial) [deg]
 PHI0 = deg2rad(PHI0);
 PSI0 = 240;                                 % Initial yaw angle (Between non-spinning frame and inertial) [deg]
 PSI0 = deg2rad(PSI0);
@@ -89,9 +90,9 @@ for i = 0:(nw-1)
     0, -sin(betaj), cos(betaj)
     ];
     Rj2 = [
-    cos(thetaj), 0, -sin(thetaj);
+    cos(thetaj0), 0, -sin(thetaj0);
     0, 1, 0;
-    sin(thetaj), 0, cos(thetaj)
+    sin(thetaj0), 0, cos(thetaj0)
     ];
     Rj3 = [
     cos(LAMBDAj-pi/2 + gamma*i), sin(LAMBDAj-pi/2 + gamma*i), 0;
@@ -166,22 +167,17 @@ x_CM = M3(:,3);
 y_CM = M3(:,2);
 CMdata = [x_CM, y_CM];
 
-sim = sim("Boomerang_Simulink.slx");
+sim = sim("Boomerang_twisted_wing_Simulink.slx");
 
 toc
 %% Plot results 
-R_inertial = zeros(length(sim.tout),3);
-u = zeros(length(sim.tout),3);
-normU = zeros(length(sim.tout),1);
 
 phi = sim.EulAng(:,1);
 theta = sim.EulAng(:,2);
 psi = sim.EulAng(:,3);
-for i = 1:length(sim.tout)
-    R_inertial(i, :) = sim.R_inertial(:,1,i);
-    u(i,:) = sim.U(:,1,i);
-    normU(i) = norm(u(i,:));
-end
+R_inertial = sim.R_inertial(:,:)';
+u = sim.U(:,:)';
+normU = vecnorm(u');
 
 % Plots
 figure(1)
@@ -197,8 +193,8 @@ xlabel('Displacement along x [m]')
 ylabel('Displacement along y [m]')
 title('Trajectory - top view (xy plane)')
 axis equal
-xlim([-10 10])
-ylim([-5 18])
+% xlim([-10 10])
+% ylim([-5 18])
 
 figure(3)
 plot(R_inertial(1,1),R_inertial(1,3), 'go', ...
@@ -208,8 +204,8 @@ xlabel('Displacement along x [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - xz plane')
 axis equal
-xlim([-10 10])
-ylim([-2 8])
+% xlim([-10 10])
+% ylim([-2 8])
 
 figure(4)
 plot(R_inertial(1,2), R_inertial(1,3), 'go', ...
@@ -219,15 +215,15 @@ xlabel('Displacement along y [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - yz plane')
 axis equal
-xlim([-5 18])
-ylim([-2 8])
+% xlim([-5 18])
+% ylim([-2 8])
 
 figure(5)
 plot(sim.tout, normU, 'k-')
 xlabel('Time [s]')
 ylabel('Speed U [m/s]')
-xlim([0 5])
-ylim([0 25])
+% xlim([0 5])
+% ylim([0 25])
 
 figure(6)
 plot3(R_inertial(1,1), R_inertial(1,2), R_inertial(1,3), 'go', ...

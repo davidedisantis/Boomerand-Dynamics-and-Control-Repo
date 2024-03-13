@@ -1,10 +1,12 @@
 function MA = MA(u, r, S_b, Cl0, Cla, R, rho)
 
-chi = r*R/norm(u);
+chi = r*R/norm([u(1) u(2)]);
 
-alpha = atan2(-real(u(3)),norm([u(1) u(2)]));
+% alpha = atan2(-real(u(3)),norm([u(1) u(2)]));
+alpha = -u(3)/norm([u(1) u(2)]);
 
-q = 0.5*rho*norm(u)^2;
+% q = 0.5*rho*norm(u)^2;
+q = 0.5*rho*norm([u(1) u(2)])^2;
 
 M0 = 1/3*q*S_b*R*Cl0*chi;
 

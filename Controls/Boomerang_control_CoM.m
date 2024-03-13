@@ -11,22 +11,24 @@ clear
 clc
 
 tic
-% Simulation parameters
+%--------------------------Simulation parameters--------------------------%
 t = 5;                     % Simulation time [s]
-dt = 1e-3;                 % Timestep for fixed-step simulation [s]
-minstep = 1e-5;            % Min timestep for variable-step simulation [s]
-maxstep = 1.66e-4;         % Max timestep for variable-step simulation [s]
-servo_rpm = 500;           % Rotation speed of servomotor that rotates the wings
-servo_rpm = deg2rad(servo_rpm);
+dt = 2e-4;                 % Timestep for fixed-step simulation [s]
 
-% Desired trajectory: returning path 
+%---------------------Mechanical control parameters-----------------------%
+servo_rpm = 500;           % Rotation speed of servo
+servo_rpm = deg2rad(servo_rpm);
+CoM_sat = 2e-2;            % Max/min shift of CoM [m]
+rate = 1;                  % Speed at which the CoM can shift [m/s]
+
+%---------------------Desired trajectory: returning path------------------% 
 load('Returning_Traj_XYZ-U-tout.mat');
 x_des = R_inertial1(:,1);
 y_des = R_inertial1(:,2);
 
 X_des = [x_des, y_des];
 
-% % Desired trajectory: circular
+% %-------------------Desired trajectory: circular------------------------%
 % R_c = 5;                                % Radius of desired circular trajectory [m]
 % 
 % x_des1 = 0:dt*4:R_c;
@@ -43,16 +45,17 @@ X_des = [x_des, y_des];
 % 
 % X_des = [x_des1, x_des2, x_des3, x_des4; y_des1, y_des2, y_des3, y_des4]';
 
-% PID parameters
-Kp = -2.5; 
-Kd = -.1;
+%-----------------------------PID parameters------------------------------%
+Kp = 0; 
+Ki = 0;
+Kd = 0;
 
-% Planetary parameters
-g = 9.81;       % Gravity acceleration [m/s^2]
-rho = 1.22;     % Air density at sea level [kg/m^3]
-v_wind = [-1.5; 0; 0];
+%---------------------------Planetary parameters--------------------------%
+g = 9.81;               % Gravity acceleration [m/s^2]
+rho = 1.22;             % Air density at sea level [kg/m^3]
+v_wind = [0; 0; 0];  % Wind velocity [m/s]
 
-% Boomerang design parameters
+%-----------------------Boomerang design parameters-----------------------%
 l_blade = 3e-1; % Length of one blade [m]
 nw = 2;         % Number of wings [ ]
 R = 2.69e-1;    % Radius of rotation [m]
@@ -60,7 +63,7 @@ S = 2.28e-1;    % Disk area [m^2]
 m = 1.30e-1;    % Boomerang mass [kg]
 c = 4.88e-2;    % Mean chord [m]
 
-x_ac = 7.45e-2; % Position of aerodynamic center in body coordinates
+x_ac = 6.1e-2; % Position of aerodynamic center in body coordinates
 LAMBDAj = 120;  % Wing sweep angle [deg]
 LAMBDAj = deg2rad(LAMBDAj);
 gamma = 120;    % Folding angle [deg]
@@ -70,10 +73,10 @@ betaj = deg2rad(betaj);
 thetaj = 0;     % Wing pitch angle
 thetaj = deg2rad(thetaj);
 
-% Moments of inertia of a single blade
+%------------------Moments of inertia of a single blade-------------------%
 I_xi = 1.88e-3; 
-I_eta = 4.78e-6;
-I_zeta = 1.95e-3;
+I_eta = 4.88e-6;
+I_zeta = 1.92e-3;
 I_xieta = 5.14e-21;
 
 Jj = [
@@ -82,48 +85,36 @@ Jj = [
     0 0 I_zeta
     ];
 
-% Launch conditions
+%----------------------------Launch conditions----------------------------%
 U0 = [25*cosd(30); 25*sind(30); 0];  % Initial throw speed in inertial frame [m/s]
 omega0 = [0; 0; 10*pi*2];            % Initial angular speed [rad/s]
-PHI0 = 70;                           % Initial roll angle (Between non-spinning frame and inertial) [deg]
+PHI0 = 73;                           % Initial roll angle (Between non-spinning frame and inertial) [deg]
 PHI0 = deg2rad(PHI0);
-PSI0 = 240;                           % Initial yaw angle (Between non-spinning frame and inertial) [deg]
+PSI0 = 225;                           % Initial yaw angle (Between non-spinning frame and inertial) [deg]
 PSI0 = deg2rad(PSI0);
 THETA0 = 0;                          % Initial pitch angle (Between non-spinning frame and inertial) [deg]
 THETA0 = deg2rad(THETA0);  
-R_pos0 = [0; 0; 5];                % Initial position in inertial frame
+R_pos0 = [0; 0; 1.5];                % Initial position in inertial frame
 
-% Parameters for integration of aerodynamic forces
+%-------------Parameters for integration of aerodynamic forces------------%
 n = 50; % Number of intervals
-l_integrate = linspace(0,l_blade,n+1);
-h = l_blade/n;
+n = n+1;% Number of points
+l_integrate = linspace(0,l_blade,n);
 
-% Rotation matrices
+%---------------------------Rotation matrices-----------------------------%
 Tj = zeros(3,3, nw);
 invTj = zeros(3,3,nw);
 
 for i = 0:(nw-1)
-    Rj1 = [
-    1, 0, 0;
-    0, cos(betaj), sin(betaj);
-    0, -sin(betaj), cos(betaj)
-    ];
-    Rj2 = [
-    cos(thetaj), 0, -sin(thetaj);
-    0, 1, 0;
-    sin(thetaj), 0, cos(thetaj)
-    ];
-    Rj3 = [
-    cos(LAMBDAj-pi/2 + gamma*i), sin(LAMBDAj-pi/2 + gamma*i), 0;
-    -sin(LAMBDAj-pi/2 + gamma*i), cos(LAMBDAj-pi/2 + gamma*i), 0;
-    0, 0, 1
-    ];
+Rj1 = [1, 0, 0; 0, cos(betaj), sin(betaj); 0, -sin(betaj), cos(betaj)];
+    Rj2 = [cos(thetaj), 0, -sin(thetaj);0, 1, 0; sin(thetaj), 0, cos(thetaj)];
+    Rj3 = [cos(LAMBDAj-pi/2 + gamma*i), sin(LAMBDAj-pi/2 + gamma*i), 0; ...
+        -sin(LAMBDAj-pi/2 + gamma*i), cos(LAMBDAj-pi/2+ gamma*i), 0;0, 0, 1];
     Tj(:,:,i+1) = Rj2*Rj1*Rj3;
-    % Tj(2,2,i+1) = -Tj(2,2,i+1);
     invTj(:,:,i+1) = transpose(Tj(:,:,i+1));
 end
 
-% Computation of moment of inertia wrt body frame
+%-------------Computation of moment of inertia wrt body frame-------------%
 Ji = zeros(3,3,nw);
 J = zeros(3);
 
@@ -131,8 +122,6 @@ for i = 1:nw
     Ji(:,:,i) = invTj(:,:,i)*Jj*Tj(:,:,i);
     J = J + (Ji(:,:,i));
 end
-J1 = invTj(:,:,1)*Jj*Tj(:,:,1);
-J = J1*2;
 
 J(2,2) = J(2,2) + m*x_ac^2;
 J(3,3) = J(3,3) + m*x_ac^2;
@@ -141,42 +130,30 @@ J = diag(diag(J));
 
 invJ = inv(J);
 
-RI01 = [
-    1, 0, 0;
-    0, cos(PHI0), sin(PHI0);
-    0, -sin(PHI0), cos(PHI0)
-    ];
-RI02 = [
-    cos(THETA0), 0, -sin(THETA0);
-    0, 1, 0;
-    sin(THETA0), 0, cos(THETA0)
-];
-RI03 = [
-    cos(PSI0), sin(PSI0), 0;
-    -sin(PSI0), cos(PSI0), 0;
-    0, 0, 1
-];
+RI01 = [1, 0, 0; 0, cos(PHI0), sin(PHI0); 0, -sin(PHI0), cos(PHI0)];
+RI02 = [cos(THETA0), 0, -sin(THETA0); 0, 1, 0; sin(THETA0), 0, cos(THETA0)];
+RI03 = [cos(PSI0), sin(PSI0), 0; -sin(PSI0), cos(PSI0), 0; 0, 0, 1];
 TI0 = RI01*RI02*RI03;
 invTI0 = transpose(TI0);
 
-% Starting conditions, body frame
+%--------------------Starting conditions, body frame----------------------%
 u0 = TI0*U0;
 r0 = TI0*R_pos0;
 
 Eul0 = [0; 0; 0];
-% Quat0 = [1; 0; 0; 0];
 
+%------------------------Aerodynamic coefficients-------------------------%
 % CL data
 M1 = readmatrix("Cl.csv");
 x_CL = M1(:,3);
-y_CL = .82*M1(:,2);
+y_CL = 1.23*M1(:,2);
 % y_CL = M1(:,2);
 CLdata = [x_CL, y_CL];
 
 % CD data
 M2 = readmatrix("Cd.csv");
 x_CD = M2(:,3);
-y_CD = .85*M2(:,2);
+y_CD = 1.03*M2(:,2);
 % y_CD = M2(:,2);
 CDdata = [x_CD, y_CD];
 
@@ -185,7 +162,6 @@ M3 = readmatrix("Cm.csv");
 x_CM = M3(:,3);
 y_CM = M3(:,2);
 CMdata = [x_CM, y_CM];
-
 sim = sim("Boomerang_CoM_simulink");
 
 toc

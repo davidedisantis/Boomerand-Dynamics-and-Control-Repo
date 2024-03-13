@@ -1,8 +1,13 @@
-function FG = FG(phi, theta, psi, m, g)
+function FG = FG(EulAng, m, g)
 % R1 = [cos(phi), sin(phi), 0; -sin(phi), cos(phi), 0; 0, 0, 1];
 % R2 = [1, 0, 0; 0, cos(theta), sin(theta); 0, -sin(theta), cos(theta)];
 % R3 = [cos(psi), sin(psi), 0; -sin(psi), cos(psi), 0; 0, 0, 1];
-    R01 = [
+
+phi = EulAng(1);
+theta = EulAng(2);
+psi = EulAng(3);
+
+R01 = [
     1, 0, 0;
     0, cos(phi), sin(phi);
     0, -sin(phi), cos(phi)

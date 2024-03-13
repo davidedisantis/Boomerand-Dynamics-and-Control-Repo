@@ -39,7 +39,7 @@ S = 2.28e-1;    % Disk area [m^2]
 m = 1.30e-1;    % Boomerang mass [kg]
 c = 4.88e-2;    % Mean chord [m]
 
-x_ac = 7.45e-2; % Position of aerodynamic center in body coordinates
+x_ac = 6.1e-2; % Position of aerodynamic center in body coordinates
 LAMBDAj = 120;  % Wing sweep angle [deg]
 LAMBDAj = deg2rad(LAMBDAj);
 gamma = 120;    % Folding angle [deg]
@@ -52,8 +52,8 @@ k = -0.1745;    % thetaj = thetaj0 + k*wingspan
 
 % Moments of inertia of a single blade
 I_xi = 1.88e-3; 
-I_eta = 4.78e-6;
-I_zeta = 1.95e-3;
+I_eta = 4.88e-6;
+I_zeta = 1.92e-3;
 I_xieta = 5.14e-21;
 
 Jj = [
@@ -150,14 +150,14 @@ Eul0 = [0; 0; 0];
 % CL data
 M1 = readmatrix("Cl.csv");
 x_CL = M1(:,3);
-y_CL = .82*M1(:,2);
+y_CL = 1.23*M1(:,2);
 % y_CL = M1(:,2);
 CLdata = [x_CL, y_CL];
 
 % CD data
 M2 = readmatrix("Cd.csv");
 x_CD = M2(:,3);
-y_CD = .85*M2(:,2);
+y_CD = 1.03*M2(:,2);
 % y_CD = M2(:,2);
 CDdata = [x_CD, y_CD];
 

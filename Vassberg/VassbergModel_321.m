@@ -19,7 +19,7 @@ R = 2.69e-1;    % Radius of rotation [m]
 S = 2.28e-1;    % Disk area [m^2]
 m = 1.30e-1;    % Boomerang mass [kg]
 c = 4.88e-2;    % Mean chord [m]
-S_b = R*c;
+S_b = l_blade*c;
 
 x_ac = 7.45e-2; % Position of aerodynamic center in body coordinates
 LAMBDAj = 120;  % Wing sweep angle [deg]
@@ -46,19 +46,13 @@ Jj = [
 ThAng = 30;                                 % Throw angle from East direction
 U0 = [25*cosd(ThAng); 25*sind(ThAng); 0];   % Initial throw speed in inertial frame [m/s]
 omega0 = [0; 0; 10*pi*2];                   % Initial angular speed [rad/s]
-phi0 = 0;                                  % Initial roll angle (Between non-spinning frame and inertial) [deg]
-phi0 = deg2rad(phi0);
-theta0 = 70;                                 % Initial pitch angle (Between non-spinning frame and inertial) [deg]
-theta0 = deg2rad(theta0);  
-psi0 = -30;                                 % Initial yaw angle (Between non-spinning frame and inertial) [deg]
-psi0 = deg2rad(psi0);
 R_pos0 = [0; 0; 1.5];                       % Initial position in inertial frame
 PHI0 = 70;                           % Initial roll angle (Between non-spinning frame and inertial) [deg]
 PHI0 = deg2rad(PHI0);
+THETA0 = 0;                          % Initial pitch angle (Between non-spinning frame and inertial) [deg]
+THETA0 = deg2rad(THETA0);
 PSI0 = 240;                           % Initial yaw angle (Between non-spinning frame and inertial) [deg]
 PSI0 = deg2rad(PSI0);
-THETA0 = 0;                          % Initial pitch angle (Between non-spinning frame and inertial) [deg]
-THETA0 = deg2rad(THETA0);  
 %------------Parameters for integration of aerodynamic forces-------------%
 n = 50; % Number of intervals
 l_integrate = linspace(0,l_blade,n+1);
@@ -127,11 +121,13 @@ u0 = T0*U0;
 r0 = T0*R_pos0;
 %------------------------Aerodynamic coefficients-------------------------%
 Cl0 = 0.3484;
-Cla = 5.2989;
+Cla = 5.7;
+Cd0 = 0.02;
+k = 1.5;
 %-------------------ODE Function: definition and solving------------------%
 f = @(t,s) [ ...
-    ( FA(s(1:3), s(9), S_b, Cl0, Cla, R, rho) + FG(s(4), s(5), s(6), m, g) )./m - cross(s(7:9),s(1:3)); ...
-    EulRate321(s(4),s(5))*s(7:9);
+    ( FA(s(1:3), s(9), S_b, Cl0, Cla, Cd0, k, R, rho) + FG(s(4:6), m, g) )./m - cross(s(7:9),s(1:3)); ...
+    EulRate321(s(4:5))*s(7:9);
     J\(MA(s(1:3), s(9), S_b, Cl0, Cla, R, rho) - cross(s(7:9), J*s(7:9)))];
 
 [t,s] = ode45(f, [0 ts], [u0; Eul0; omega0]);
@@ -191,7 +187,7 @@ ylabel('Altitude [s]')
 
 figure(2)
 plot(POS(1,1), POS(1,2), 'go', ...
-    POS(:,1), POS(:,2), 'k--', ...
+    POS(:,1), POS(:,2), 'k-', ...
     POS(end,1), POS(end,2), 'ro')
 xlabel('Displacement along x [m]')
 ylabel('Displacement along y [m]')
@@ -202,26 +198,30 @@ axis equal
 
 figure(3)
 plot(POS(1,1),POS(1,3), 'go', ...
-    POS(:,1), POS(:,3), 'k--', ...
+    POS(:,1), POS(:,3), 'k-', ...
     POS(end,1), POS(end,3), 'ro')
 xlabel('Displacement along x [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - xz plane')
+axis equal
 
 figure(4)
 plot(POS(1,2), POS(1,3), 'go', ...
-    POS(:,2), POS(:,3), 'k--', ...
+    POS(:,2), POS(:,3), 'k-', ...
     POS(end,2), POS(end,3), 'ro')
 xlabel('Displacement along y [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - yz plane')
+axis equal
 
 figure(5)
 plot(t(cut), vecnorm(u(cut,:)'))
 
-figure(6)
-plot3(POS(:,1), POS(:,2), POS(:,3),'k--')
-grid on
-xlabel('X axis')
-ylabel('Y axis')
-zlabel('Z axis')
+% figure(6)
+% plot3(POS(1,1), POS(1,2), POS(1,3), 'go', ...
+%     POS(:,1), POS(:,2), POS(:,3),'k--', ...
+%     POS(end,1), POS(end,2), POS(end,3), 'ro')
+% grid on
+% xlabel('X axis')
+% ylabel('Y axis')
+% zlabel('Z axis')

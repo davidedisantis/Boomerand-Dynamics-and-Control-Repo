@@ -18,10 +18,6 @@ dt = 2e-4;                 % Timestep for fixed-step simulation [s]
 %---------------------Mechanical control parameters-----------------------%
 servo_rpm = 500;           % Rotation speed of the servo/rotation speed of the wing
 servo_rpm = deg2rad(servo_rpm);
-max_dd = 45;              % Max delta of joint angle [deg]
-max_dd = deg2rad(max_dd);  
-min_dd = -45;              % Min delta of joint angle [deg]
-min_dd = deg2rad(min_dd);
 
 %---------------------Desired trajectory: returning path------------------% 
 load('Returning_Traj_XYZ-U-tout.mat');

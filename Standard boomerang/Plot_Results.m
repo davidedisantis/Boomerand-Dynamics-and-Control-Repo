@@ -1,3 +1,61 @@
+%% Plot and compare aerodynamic forces and moments
+close all
+load('FA-MA-noapprox.mat')
+figure(1)
+plot(t,FA(1,:), sim.tout, sim.FA(1,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Force [N]')
+title('F^A_1')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+figure(2)
+plot(t,FA(2,:), sim.tout, sim.FA(2,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Force [N]')
+title('F^A_2')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+figure(3)
+plot(t,FA(3,:), sim.tout, sim.FA(3,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Force [N]')
+title('F^A_3')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+figure(4)
+plot(t,MA(1,:), sim.tout, sim.MA(1,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Moment [Nm]')
+title('M^A_1')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+figure(5)
+plot(t,MA(2,:), sim.tout, sim.MA(2,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Moment [Nm]')
+title('M^A_2')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+figure(6)
+plot(t,MA(3,:), sim.tout, sim.MA(3,:), 'LineWidth',1.5)
+xlabel('Time [s]')
+ylabel('Moment [Nm]')
+title('M^A_3')
+legend('Complete model', 'Approximated model')
+xlim([0 min([sim.tout(end) t(end)])])
+
+% figure(7)
+% plot(sim.tout, abs(FA(3,1:min([length(t), length(sim.tout)])) - sim.FA(3,1:min([length(t), length(sim.tout)])) )./FA(3,1:min([length(t), length(sim.tout)])) )
+
+mean(abs(FA(3,1:min([length(t), length(sim.tout)])) - sim.FA(3,1:min([length(t), length(sim.tout)])) )./FA(3,1:min([length(t), length(sim.tout)])))
+
+mean(abs(MA(1,1:min([length(t), length(sim.tout)])) - sim.MA(1,1:min([length(t), length(sim.tout)])) )./abs((MA(1,1:min([length(t), length(sim.tout)])))))
+
 %% Plot results over existing plots - Dashed line (comment the 'close all' on main)
 R_inertial = zeros(length(sim.tout),3);
 u = zeros(length(sim.tout),3);

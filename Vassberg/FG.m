@@ -1,4 +1,4 @@
-function FG = FG(EulAng, m, g)
+function FG = FG(EulAng, m, g, TI0)
 % R1 = [cos(phi), sin(phi), 0; -sin(phi), cos(phi), 0; 0, 0, 1];
 % R2 = [1, 0, 0; 0, cos(theta), sin(theta); 0, -sin(theta), cos(theta)];
 % R3 = [cos(psi), sin(psi), 0; -sin(psi), cos(psi), 0; 0, 0, 1];
@@ -24,5 +24,5 @@ R03 = [
 ];
 T = R01*R02*R03;
 
-FG = -m*g*T*[0; 0; 1];
+FG = -m*g*T*TI0*[0; 0; 1];
 end

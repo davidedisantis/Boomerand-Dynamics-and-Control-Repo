@@ -14,17 +14,17 @@ tic
 % Simulation parameters
 t = 6;                     % Simulation time [s]
 dt = 1e-3;                 % Fixed-step timestep
-minstep = 1e-5;            % Min timestep for variable-step simulation [s]
-maxstep = 1.66e-4;         % Max timestep for variable-step simulation [s]
+% minstep = 1e-5;            % Min timestep for variable-step simulation [s]
+% maxstep = 1.66e-4;         % Max timestep for variable-step simulation [s]
 
-t_action1 = 1;             % Instant at which a change of wing pitch occurs
-t_action2 = 2;             % Instant at which a second change of pitch occurs
-delta_theta1 = 0;          % Pitch variation at instant t_action1 [deg]
-delta_theta2 = 0;          % Pitch variation at instant t_action2 (relative to last pitch variation) [deg]
-t_rise = 0.01;             % Time needed to rotate by 1 deg [s/deg]
-t_rise = t_rise*180/pi;    % [s/rad]
-delta_theta1 = deg2rad(delta_theta1);
-delta_theta2 = deg2rad(delta_theta2);
+% t_action1 = 1;             % Instant at which a change of wing pitch occurs
+% t_action2 = 2;             % Instant at which a second change of pitch occurs
+% delta_theta1 = 0;          % Pitch variation at instant t_action1 [deg]
+% delta_theta2 = 0;          % Pitch variation at instant t_action2 (relative to last pitch variation) [deg]
+% t_rise = 0.01;             % Time needed to rotate by 1 deg [s/deg]
+% t_rise = t_rise*180/pi;    % [s/rad]
+% delta_theta1 = deg2rad(delta_theta1);
+% delta_theta2 = deg2rad(delta_theta2);
 
 % Planetary parameters
 g = 9.81;                % Gravity acceleration [m/s^2]

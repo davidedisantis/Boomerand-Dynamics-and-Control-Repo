@@ -16,8 +16,6 @@ t = 5;                     % Simulation time [s]
 dt = 2e-4;                 % Timestep for fixed-step simulation [s]
 
 %---------------------Mechanical control parameters-----------------------%
-servo_rpm = 500;           % Rotation speed of servo
-servo_rpm = deg2rad(servo_rpm);
 CoM_sat = 2e-2;            % Max/min shift of CoM [m]
 rate = 1;                  % Speed at which the CoM can shift [m/s]
 

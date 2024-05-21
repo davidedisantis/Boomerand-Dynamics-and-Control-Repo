@@ -20,6 +20,9 @@ rho = 1.22;                   % Air density at sea level on Earth [kg/m^3]
 % g = 8.87;                     % Gravity acceleration on Venus [m/s^2] 
 % rho = 0.4854;                 % Air density at 60 km on Venus [kg/m^3]
 
+% g = 8.87;                     % Gravity acceleration on Venus [m/s^2] 
+% rho = 1.3288;                 % Air density at 52 km on Venus [kg/m^3]
+
 v_wind = [0; 0; 0];      % Wind speed in inertial reference frame [m/s]
 
 %-----------------------Boomerang design parameters-----------------------%
@@ -29,9 +32,10 @@ R = l_blade;            % Radius of rotation [m]
 S = pi*R^2;             % Disk area [m^2]
 m_b = 200e-3;          % Boomerang mass [kg]
 c = 5e-2;               % Mean chord [m]
-m_add = zeros(3);
+% m_add = zeros(3);
 % m_add(3,3) = 8/3*rho*R^3;
-m = m_b*eye(3) + m_add;
+% m = m_b*eye(3) + m_add;
+m = m_b;
 invm = inv(m);
 
 d_ac = c/4; % Position of aerodynamic center in body coordinates
@@ -144,25 +148,26 @@ y_CM = M3(:,2);
 CMdata = [x_CM, y_CM];
 
 %--------------------------IMU Sensor modeling----------------------------% Present data = ISM330DHCX IMU
-% acc = struct('scalefactor', [], 'bias',[], 'lim', [], 'noise', []);
-% gyro = struct('scalefactor', [], 'bias', [], 'gbias', [], 'lim',[], 'noise',[]);
-% f = 1000;                            % Sampling frequency [Hz]
-% acc.sf = [1 0.005 0.005; 0.005 1 0.005; 0.005 0.005 1]; % Scale factor and cross-couplings []
-% acc.bias = [1 1 1].*60e-3*g;
-% acc.lim = [-16*g  -16*g  -16*g  16*g 16*g 16*g];
-% acc.noise = [80e-6*g/sqrt(f) 80e-6*g/sqrt(f) 80e-6*g/sqrt(f)];
-% 
-% gyro.sf = [1 0.01 0.01; 0.01 1 0.01; 0.01 0.01 1];
-% gbias = deg2rad(3);
-% gyro.bias = [gbias gbias gbias];
-% gyro.gbias = [deg2rad(0.1) deg2rad(0.1) deg2rad(0.1)];
-% glim = deg2rad(4000);
-% gyro.lim = [-glim  -glim  -glim  glim glim glim];
-% gyro.noise = [deg2rad(7e-3)/sqrt(f) deg2rad(7e-3)/sqrt(f) deg2rad(7e-3)/sqrt(f)];
-% 
-% noise = [acc.noise gyro.noise];
+acc = struct('scalefactor', [], 'bias',[], 'lim', [], 'noise', []);
+gyro = struct('scalefactor', [], 'bias', [], 'gbias', [], 'lim',[], 'noise',[]);
+f = 1000;                            % Sampling frequency [Hz]
+acc.sf = [1 0.005 0.005; 0.005 1 0.005; 0.005 0.005 1]; % Scale factor and cross-couplings []
+acc.bias = [1 1 1].*60e-3*g;
+acc.lim = [-16*g  -16*g  -16*g  16*g 16*g 16*g];
+acc.noise = [80e-6*g/sqrt(f) 80e-6*g/sqrt(f) 80e-6*g/sqrt(f)];
 
-sim = sim("Boomerang_Simulink");
+gyro.sf = [1 0.01 0.01; 0.01 1 0.01; 0.01 0.01 1];
+gbias = deg2rad(3);
+gyro.bias = [gbias gbias gbias];
+gyro.gbias = [deg2rad(0.1) deg2rad(0.1) deg2rad(0.1)];
+glim = deg2rad(4000);
+gyro.lim = [-glim  -glim  -glim  glim glim glim];
+gyro.noise = [deg2rad(7e-3)/sqrt(f) deg2rad(7e-3)/sqrt(f) deg2rad(7e-3)/sqrt(f)];
+
+noise = [acc.noise gyro.noise];
+
+% sim = sim("Boomerang_Simulink");
+sim = sim("Boomerang_Simulink_Nav");
 % sim = sim("Boomerang_Simulink_validation_smAoA.slx");
 % sim = sim("Boomerang_Simulink_quat_beta");
 toc
@@ -256,7 +261,7 @@ title('Spin speed')
 
 % figure(6)
 % plot3(R_inertial(1,1), R_inertial(1,2), R_inertial(1,3), 'go', ...
-%     R_inertial(:,1), R_inertial(:,2), R_inertial(:,3), 'k-', ...
+%     R_inertial(:,1), R_inertial(:,2), R_inertial(:,3), 'k--', ...
 %     R_inertial(end,1), R_inertial(end,2), R_inertial(end,3), 'ro')
 % title('3D Trajectory')
 % grid on
@@ -325,24 +330,23 @@ phi = sim.EulAng(:,1);
 theta = sim.EulAng(:,2);
 psi = sim.EulAng(:,3);
 R_inertial = sim.R_inertial(:,:)';
-% % Define the filename for the video
-% videoFilename = 'trajectory_video_4w.avi';
+% Define the filename for the video
+videoFilename = 'trajectory_video_4w.avi';
 
-% % Create a VideoWriter object
-% video = VideoWriter(videoFilename);
-% 
-% % Set the frame rate (frames per second)
-% numFrames = length(phi(1:50:end));
-% frameRate = numFrames/(sim.tout(end)); % Adjust as needed
-% video.FrameRate = frameRate;
-% 
-% % Open the VideoWriter
-% open(video);
+% Create a VideoWriter object
+video = VideoWriter(videoFilename);
+
+% Set the frame rate (frames per second)
+numFrames = length(phi(1:50:end));
+frameRate = numFrames/(sim.tout(end)); % Adjust as needed
+video.FrameRate = frameRate;
+
+% Open the VideoWriter
+open(video);
 
 x_v = [1; 0; 0];
 y_v = [0; 1; 0];
 z_v = [0; 0; 1];
-% R_inertial = zeros(size(R_inertial));
 
 for i = 1:50:length(sim.tout)
     R1 = [
@@ -378,19 +382,19 @@ for i = 1:50:length(sim.tout)
     hold off
     legend('Trajectory', 'x_b', 'y_b', 'z_b','interpreter', 'TeX')
     grid on
-    title(['Time elapsed: ', num2str(sim.tout(i)), ' s'])
+    title(['Flight time: ', num2str(sim.tout(i)), ' s'])
 
     xlim([min(R_inertial(:,1))-1 max(R_inertial(:,1))+1])
     ylim([min(R_inertial(:,2))-1 max(R_inertial(:,2))+1])
     zlim([min(R_inertial(:,3))-1 max(R_inertial(:,3))+1])
-    %  % Capture the current frame
-    % frame = getframe(gcf);
-    % 
-    % % Write the frame to the video
-    % writeVideo(video, frame);
+     % Capture the current frame
+    frame = getframe(gcf);
+
+    % Write the frame to the video
+    writeVideo(video, frame);
 end
-% % Close the VideoWriter
-% close(video);
+% Close the VideoWriter
+close(video);
 
 %% Trajectory and attitude - Quaternions
 % phi = sim.EulAng(1,:);
@@ -477,3 +481,98 @@ title('Energy over time')
 xlabel('Time [s]')
 ylabel('Energy [J]')
 legend('Potential Energy', 'Kinetic Energy', 'Rotational Energy')
+
+%% IMU Measurements vs Ground Truth
+close all
+
+R_inertial = sim.R_inertial(:,:)';
+U = sim.U(:,:)';
+normU = vecnorm(U');
+u = sim.u(:,:);
+omega = sim.omega;
+sample = 1/(f*dt);
+t_s = sim.tout(1:sample:end);
+
+acc = sim.acc(:,:);
+R_s = R_inertial(1:sample:end,:);
+u_s = u(:,1:sample:end);
+acc_s = acc(:,1:sample:end);
+omega_s = omega(1:sample:end,:);
+
+acc_nav = sim.acc_nav;
+omega_nav = sim.omega_nav;
+
+u_nav = sim.u_nav;
+u_nav = u_nav(1:sample:end, :);
+R_nav = sim.R_nav(:,:);
+R_nav = R_nav(:,1:sample:end);
+EulAng_nav = sim.EulAng_nav(:,:);
+EulAng = sim.EulAng;
+
+err_vel = vecnorm(u_s - u_nav');
+err_pos = vecnorm(R_s' - R_nav);
+err_omega = vecnorm(omega_s' - omega_nav');
+
+figure(1)
+plot(sim.tout, acc(1,:), 'k-')
+hold on
+plot(t_s, acc_nav(:,1), 'k--')
+legend('Ground truth', 'IMU estimates')
+xlabel('Time [s]')
+ylabel('Acceleration [m/s^2]')
+title('Acceleration along x - Actual vs estimated comparison')
+
+figure(2)
+plot(sim.tout, acc(2,:), 'k-')
+hold on
+plot(t_s, acc_nav(:,2), 'k--')
+legend('Dynamic model data', 'IMU estimates')
+xlabel('Time [s]')
+ylabel('Acceleration [m/s^2]')
+title('Acceleration along y - Actual vs estimated comparison')
+
+figure(3)
+plot(sim.tout, acc(3,:), 'k-')
+hold on
+plot(t_s, acc_nav(:,3), 'k--')
+legend('Dynamic model data', 'IMU estimates')
+xlabel('Time [s]')
+ylabel('Acceleration [m/s^2]')
+title('Acceleration along z - Actual vs estimated comparison')
+
+figure(4)
+plot(t_s, err_omega, 'k')
+xlabel('Time[s]')
+ylabel('Error [rad/s]')
+title('Absolute Error in angular velocities estimation')
+
+figure(5)
+plot(sim.tout, normU, 'k-')
+hold on
+plot(t_s, vecnorm(u_nav'), 'k--')
+legend('Ground truth', 'IMU estimates')
+xlabel('Time [s]')
+ylabel('Speed [m/s]')
+title('Speed - Actual vs estimated comparison')
+
+figure(6)
+plot(R_inertial(:,1),R_inertial(:,2), 'k-')
+hold on
+plot(R_nav(1,:), R_nav(2,:), 'k--')
+legend('Ground Truth', 'IMU estimates')
+axis equal
+xlabel('Displacemenent along x')
+ylabel('Displacemenent along y')
+title('Top view trajectory - Actual vs estimated comparison')
+
+figure(7)
+plot(t_s, err_vel)
+xlabel('Time[s]')
+ylabel('Error [m/s]')
+title('Absolute Error in speed estimation')
+
+figure(8)
+plot(t_s, err_pos, 'k-')
+xlabel('Time [s]')
+ylabel('Error [m]')
+title('Absolute Error in position estimation')

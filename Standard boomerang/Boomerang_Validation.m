@@ -173,8 +173,8 @@ xlabel('Displacement along y [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - yz plane')
 axis equal
-% xlim([-5 18])
-% ylim([-2 8])
+xlim([0 11])
+ylim([0 8])
 
 figure(5)
 hold on

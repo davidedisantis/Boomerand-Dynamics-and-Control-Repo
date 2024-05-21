@@ -5,7 +5,7 @@ clc
 
 tic
 %--------------------------Simulation parameters--------------------------%
-t = 2.85;                     % Simulation time [s]
+t = 10;                     % Simulation time [s]
 dt = 2e-4;                    % Fixed-step timestep
 f_con = 1000;                 % Control frequency [Hz]                
 dt_con = 1/f_con;             % Control timestep [s]
@@ -15,7 +15,8 @@ maxstep = 1.66e-4;            % Max timestep for variable-step simulation [s]
 %---------------------------Planetary parameters--------------------------%
 g = 9.81;                % Gravity acceleration [m/s^2]
 rho = 1.22;              % Air density at sea level [kg/m^3]
-v_wind = [-1; 0; 0];      % Wind speed in inertial reference frame [m/s]
+v_wind = [0; 1.5; 0];      % Wind speed in inertial reference frame [m/s]
+% v_wind = [-1.5; 0; 0];
 
 %-----------------------Boomerang design parameters-----------------------%
 l_blade = 25e-2;       % Length of one blade [m]
@@ -24,6 +25,7 @@ R = l_blade;            % Radius of rotation [m]
 S = pi*R^2;             % Disk area [m^2]
 m = 200e-3;          % Boomerang mass [kg]
 c = 5e-2;               % Mean chord [m]
+S_b = l_blade*c*nw;
 
 d_ac = c/4; % Position of aerodynamic center in body coordinates
 LAMBDAj = 0;  % Wing sweep angle [deg]
@@ -32,7 +34,7 @@ gamma = 90;    % Folding angle [deg]
 gamma = deg2rad(gamma);
 betaj = 4;      % Wing coning angle 
 betaj = deg2rad(betaj);
-thetaj = 25;     % Wing pitch angle at root
+thetaj = 0;     % Wing pitch angle at root
 x_ac = zeros(3,nw);
 for i = 1:nw
     Rac = [cos(gamma*i), sin(gamma*i), 0; -sin(gamma*i), cos(gamma*i), 0;0, 0, 1];
@@ -162,39 +164,59 @@ X_des = [x_des, y_des];
 %-------------------------Pitch control parameters------------------------%
 servo_rpm = 500;           % Rotation speed of the servo/rotation speed of the wing
 servo_rpm = deg2rad(servo_rpm);
-theta_sat = 35;            % Max/min rotation of the wing [deg]
-theta_sat = deg2rad(theta_sat);
-%--------------------------CoM control parameters-------------------------%
-CoM_sat = 4e-2;            % Max/min shift of CoM [m]
-rate = 1;                  % Speed at which the CoM can shift [m/s]
+theta_sat_u = 40;               % Max achievable collective pitch angle [deg]
+theta_sat_l = -5;               % Min achievable collective pitch angle [deg]
+theta_sat_u = deg2rad(theta_sat_u);
+theta_sat_l = deg2rad(theta_sat_l);
+
+theta_sat_u_cy = 10;                % Max achievable cyclice pitch angle [deg]
+theta_sat_l_cy = -10;               % Min achievable cyclice pitch angle [deg]
+theta_sat_u_cy = deg2rad(theta_sat_u_cy);
+theta_sat_l_cy = deg2rad(theta_sat_l_cy);
+
+%-------------------------Pitch PID parameters----------------------------%
+Kp = .6; 
+Ki = 0;
+Kd = 1;
+
+krchi = 4; % k that allows to control roll to cancel error in CHI
+krz = -1;   % k that allows to control roll to cancel error in Z
+kpchi = 10; % k that allows to control wing-pitch to cancel error in CHI
+kpz = 5;
+%---------------Cyclic pitch - attitude control PID parameters------------%
+Kp_roll = 7;
+Ki_roll = 0;
+Kd_roll = 0;
+
+Kp_pitch = 8*0;
+Ki_pitch = 0;
+Kd_pitch = 2*0;
+
 %-----------------------Dihedral control parameters-----------------------%
-max_dd = 45;              % Max delta of joint angle [deg]
-max_dd = deg2rad(max_dd);  
-min_dd = -45;              % Min delta of joint angle [deg]
-min_dd = deg2rad(min_dd);
-% %-------------------------Pitch PID parameters----------------------------%
-Kp = .0; 
-Ki = 0.;
-Kd = 0.;
-% %-----------------------------CoM PD parameters---------------------------%
-% Kp = -.02;
-% Ki = 0;
-% Kd = -.1;
-%-----------------------------Dihedral PD parameters----------------------%
+% max_dd = 10;              % Max delta of joint angle [deg]
+% max_dd = deg2rad(max_dd);  
+% min_dd = 0;              % Min delta of joint angle [deg]
+% min_dd = deg2rad(min_dd);
+
+%---------------------------Dihedral PD parameters------------------------%
 % Kp = 0.5;
 % Ki = 0;
 % Kd = 0.2;
 % Kp = 0; Ki = 0; Kd = 0;
-%---------------Cyclic pitch - attitude control PID parameters------------%
-Kp_roll = 0;
-Ki_roll = 0;
-Kd_roll = 0;
-PHI_des = 85;    % Desired angle between the horizon plane and z_body axis
-PHI_des = deg2rad(PHI_des);
+
+%------------------------Blade length PID parameters----------------------%
+% Kp = 0.5;
+% Ki = 0;
+% Kd = 1;
+% 
+% max_l = 5e-2;               % Max positive delta of blade length
+% min_l = -5e-2;              % Max negative delta of blade length
+% l_rate = .2;                % Max blade length variation speed [m/s]
 
 sim = sim("Boomerang_pitch_att_simulink.slx");
-% sim = sim("Boomerang_CoM_simulink");
+% sim = sim("Boomerang_pitch_simulink");
 % sim = sim("Boomerang_dihedral_simulink");
+% sim = sim("Boomerang_lblade_simulink");
 
 toc
 %% Plot top view trajectory and compare with desired and uncontrolled trajectories
@@ -202,14 +224,31 @@ toc
 % normU = zeros(length(sim.tout),1);
 
 %-Load the correct file for uncontrolled trajectory under effects of wind-%
-load('Wind_wx_4wings.mat')
-
+if v_wind(1) == -1.5 && v_wind(2) == 0 && v_wind(3) == 0
+    load('Wind_wx_4wings.mat')
+else if v_wind(1) == 1.5 && v_wind(2) == 0 && v_wind(3) == 0
+    load('Wind_wxx_4wings.mat')
+else if v_wind(1) == -3 && v_wind(2) == 0 && v_wind(3) == 0
+    load('Wind_2wx_4wings.mat')
+else if v_wind(2) == 1.5 && v_wind(1) == 0 && v_wind(3) == 0
+    load('Wind_wy_4wings.mat')
+else if v_wind(2) == -1.5 && v_wind(1) == 0 && v_wind(3) == 0
+    load('Wind_wyy_4wings.mat')
+else
+    R_inertial_w = [0; 0]; % Do not plot uncontrolled trajectory if it was not previously computed
+end
+end
+end
+end
+end
 x_w = R_inertial_w(1,:);
 y_w = R_inertial_w(2,:);
 
 R_inertial = sim.R_inertial(:,:);
-fprintf('\nThe final distance from the thrower is %f m\n',norm(R_inertial(:,end)))
+fprintf('\nThe final distance from the thrower is %f m\n',norm(R_inertial(1:2,end)))
 
+% Plot top-view trajectory 
+hold on
 figure(1)
 plot(R_inertial(1,1),R_inertial(2,1), 'go', ...
     R_inertial(1,:), R_inertial(2,:), 'k-', ...
@@ -223,25 +262,34 @@ hold on
 plot(x_w, y_w, 'r--');
 legend('', 'Controlled trajectory', '', 'Desired trajectory','Uncontrolled trajectory', 'Location','southeast','FontSize',11)
 axis equal
+err_vec = zeros(length(R_inertial),1);
+
+% for i = 1:length(R_inertial)
+%     err_vec(i) = min(vecnorm([R_inertial(1,i) R_inertial(2,i)] - X_des,2,2));
+%     % err_sign = sign(norm([R_inertial(1,i) R_inertial(2,i)]) - norm([X_des(i,1), X_des(i,2)]));
+%     % err_vec(i) = err_vec(i)*err_sign;
+% end
+% figure(2)
+% plot(sim.tout, err_vec)
 %% Plot results 
 
 phi = sim.EulAng(:,1);
 theta = sim.EulAng(:,2);
 psi = sim.EulAng(:,3);
-R_inertial = sim.R_inertial(:,:)';
+R_inertial = sim.R_inertial(:,:);
 U = sim.U(:,:)';
 normU = vecnorm(U');
 
 % Plots
 figure(1)
-plot(sim.tout, R_inertial(:,3), 'k-')
+plot(sim.tout, R_inertial(3,:), 'k-')
 xlabel('Time [s]')
 ylabel('Altitude [m]')
 
 figure(2)
-plot(R_inertial(1,1),R_inertial(1,2), 'go', ...
-    R_inertial(:,1), R_inertial(:,2), 'k-', ...
-    R_inertial(end,1), R_inertial(end,2), 'ro')
+plot(R_inertial(1,1),R_inertial(2,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), 'ro')
 xlabel('Displacement along x [m]')
 ylabel('Displacement along y [m]')
 title('Trajectory - top view (xy plane)')
@@ -250,9 +298,9 @@ axis equal
 % ylim([-5 18])
 
 figure(3)
-plot(R_inertial(1,1),R_inertial(1,3), 'go', ...
-    R_inertial(:,1), R_inertial(:,3), 'k-', ...
-    R_inertial(end,1), R_inertial(end,3), 'ro')
+plot(R_inertial(1,1),R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(3,end), 'ro')
 xlabel('Displacement along x [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - xz plane')
@@ -261,9 +309,9 @@ axis equal
 % ylim([-2 8])
 
 figure(4)
-plot(R_inertial(1,2), R_inertial(1,3), 'go', ...
-    R_inertial(:,2), R_inertial(:,3), 'k-', ...
-    R_inertial(end,2), R_inertial(end,3), 'ro')
+plot(R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(2,end), R_inertial(3,end), 'ro')
 xlabel('Displacement along y [m]')
 ylabel('Displacement along z [m]')
 title('Trajectory - yz plane')
@@ -281,80 +329,38 @@ ylabel('Speed U [m/s]')
 % figure(6)
 % plot(sim.tout, sim.omega(:,3),'k')
 
-% figure(6)
-% plot3(R_inertial(1,1), R_inertial(1,2), R_inertial(1,3), 'go', ...
-%     R_inertial(:,1), R_inertial(:,2), R_inertial(:,3), 'k-', ...
-%     R_inertial(end,1), R_inertial(end,2), R_inertial(end,3), 'ro')
-% title('3D Trajectory')
-% grid on
-%% Plot roll angle and desired roll angle
-close all
-clc
-phi = sim.EulAng(:,1);
-theta = sim.EulAng(:,2);
-psi = sim.EulAng(:,3);
-THETA = zeros(size(phi));
-PHI = zeros(size(phi));
-lambda = sim.lambda;
-load('PHI_natural')
-for i = 1:length(sim.tout)
-    R1 = [1, 0, 0; 0, cos(phi(i)), sin(phi(i)); 0, -sin(phi(i)), cos(phi(i))];
-    R2 = [cos(theta(i)), 0, -sin(theta(i)); 0, 1, 0; sin(theta(i)), 0, cos(theta(i))];
-    R3 = [cos(psi(i)), sin(psi(i)), 0; -sin(psi(i)), cos(psi(i)), 0; 0, 0, 1];
-    T0 = R1*R2*R3;
-    Tn = [cos(lambda(i)) -sin(lambda(i)) 0; sin(lambda(i)) cos(lambda(i)) 0; 0 0 1];
-    TI = Tn*T0*TI0;
-    THETA(i) = -asin(TI(1,3));
-    % PSI(i) = acos( TI(1,1)/cos(THETA(i)) );
-    PHI(i) = acos( TI(3,3)/cos(THETA(i)) );
-end
-% figure(2)
-plot(sim.tout, rad2deg(PHI), sim.tout, rad2deg(PHI_des)*ones(size(sim.tout)),'LineWidth', 1)
-hold on
-plot(t1, rad2deg(PHI1), 'k--')
-legend('Roll angle', 'Desired roll angle', 'Uncontrolled roll angle')
-% figure(3)
-% plot(sim.tout, rad2deg(THETA),'LineWidth', 1)
-% figure(4)
-% plot(sim.tout, rad2deg(PSI),'LineWidth', 1)
+figure(6)
+plot3(R_inertial(1,1), R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), R_inertial(3,end), 'ro')
+title('3D Trajectory')
+grid on
 
-% Averages
-[~,maxind] = findpeaks(lambda); % Find the local maxima of lambda 
-maxind = [1;maxind];
-mean_t = zeros(length(maxind)-1,1);
-mean_PHI = zeros(length(maxind)-1,1);
 
-for i = 1:(length(maxind)-1)
-    mean_t(i) = mean(sim.tout(maxind(i):maxind(i+1)));
-    mean_PHI(i) = mean(PHI(maxind(i):maxind(i+1)));
-end
-
-figure(2)
-plot(sim.tout,rad2deg(PHI_des)*ones(size(sim.tout)), mean_t, rad2deg(mean_PHI), 'LineWidth',1.5);
-hold on
-plot(mean_t1, rad2deg(mean_PHI1), 'k--','LineWidth', 0.5)
-xlim([0, sim.tout(end)])
-legend('Desired angle', 'Avg Actual angle', 'Avg Uncontrolled angle - natural trajectory', 'FontSize', 11)
-xlabel('Time [s]')
-ylabel('Roll angle \Phi [deg]')
-
-s = abs(max(abs(mean_PHI)) - PHI_des);
-fprintf('\nThe maximum overshoot is %f degrees \n', rad2deg(s))
-
-%% Trajectory and attitude
+%% Trajectory and attitude - Euler Angles
 phi = sim.EulAng(:,1);
 theta = sim.EulAng(:,2);
 psi = sim.EulAng(:,3);
 R_inertial = sim.R_inertial(:,:)';
-PHI = sim.PHI;
-figure(2)
-plot(sim.tout,zeros(size(sim.tout)), sim.tout, rad2deg(PHI));
-legend('Desired', 'Actual')
+% % Define the filename for the video
+% videoFilename = 'trajectory_video.avi';
+
+% % Create a VideoWriter object
+% video = VideoWriter(videoFilename);
+% 
+% % Set the frame rate (frames per second)
+% numFrames = length(phi(1:50:end));
+% frameRate = numFrames/(sim.tout(end)); % Adjust as needed
+% video.FrameRate = frameRate;
+% 
+% % Open the VideoWriter
+% open(video);
+
 x_v = [1; 0; 0];
 y_v = [0; 1; 0];
 z_v = [0; 0; 1];
-R_inertial = zeros(size(R_inertial));
-for i = 1:10:length(phi)
+% R_inertial = zeros(size(R_inertial));
+for i = 1:50:length(sim.tout)
     R1 = [
     1, 0, 0;
     0, cos(phi(i)), sin(phi(i));
@@ -375,7 +381,7 @@ for i = 1:10:length(phi)
     attx = invTI0*invT0*x_v;
     atty = invTI0*invT0*y_v;
     attz = invTI0*invT0*z_v;
-    
+
     figure(1);
     plot3(R_inertial(:,1),R_inertial(:,2),R_inertial(:,3),'k-')
     hold on
@@ -385,16 +391,22 @@ for i = 1:10:length(phi)
     hold on
     quiver3(R_inertial(i,1),R_inertial(i,2),R_inertial(i,3), attz(1), attz(2), attz(3), 'r')    
     xlabel('X axis'), ylabel('Y axis'), zlabel('Z axis')
-    hold on
-    quiver3(R_inertial(i,1),R_inertial(i,2),R_inertial(i,3), 0, 0, 1, 'g') 
     hold off
-    legend('Trajectory', 'x_b', 'y_b', 'z_b', 'Z_des','interpreter', 'TeX', 'FontSize', 11)
+    legend('Trajectory', 'x_b', 'y_b', 'z_b','interpreter', 'TeX')
+    title('Time elapsed: ', num2str(sim.tout(i)))
     grid on
-    % pause(.00000001)
+
     xlim([min(R_inertial(:,1))-1 max(R_inertial(:,1))+1])
     ylim([min(R_inertial(:,2))-1 max(R_inertial(:,2))+1])
     zlim([min(R_inertial(:,3))-1 max(R_inertial(:,3))+1])
+    %  % Capture the current frame
+    % frame = getframe(gcf);
+    % 
+    % % Write the frame to the video
+    % writeVideo(video, frame);
 end
+% % Close the VideoWriter
+% close(video);
 %% Plot and compare energies with undisturbed returning trajectory
 
 figure(1)
@@ -467,10 +479,12 @@ end
 
 figure(2)
 plot(sim.tout, rad2deg(PHI),'LineWidth', 1)
+title('Roll angle')
 figure(3)
 plot(sim.tout, rad2deg(THETA),'LineWidth', 1)
-figure(4)
-plot(sim.tout, rad2deg(PSI),'LineWidth', 1)
+title('Pitch angle')
+% figure(4)
+% plot(sim.tout, rad2deg(PSI),'LineWidth', 1)
 
 for i = 1:50:length(sim.tout)
     R1 = [1, 0, 0; 0, cos(phi(i)), sin(phi(i)); 0, -sin(phi(i)), cos(phi(i))];
@@ -509,6 +523,7 @@ for i = 1:50:length(sim.tout)
     xlabel('X axis'), ylabel('Y axis'), zlabel('Z axis')
     hold off
     legend('Trajectory', 'x_b', 'y_b', 'z_b','interpreter', 'TeX')
+    title('Time elapsed: ', num2str(sim.tout(i)))
     grid on
 
     xlim([min(R_inertial(:,1))-1 max(R_inertial(:,1))+1])
@@ -522,3 +537,282 @@ for i = 1:50:length(sim.tout)
 end
 % % Close the VideoWriter
 % close(video);
+%% Plot roll angle and desired roll angle
+close all
+clc
+phi = sim.EulAng(:,1);
+theta = sim.EulAng(:,2);
+psi = sim.EulAng(:,3);
+THETA = zeros(size(phi));
+PHI = zeros(size(phi));
+lambda = sim.lambda;
+load('PHI_natural')
+for i = 1:length(sim.tout)
+    R1 = [1, 0, 0; 0, cos(phi(i)), sin(phi(i)); 0, -sin(phi(i)), cos(phi(i))];
+    R2 = [cos(theta(i)), 0, -sin(theta(i)); 0, 1, 0; sin(theta(i)), 0, cos(theta(i))];
+    R3 = [cos(psi(i)), sin(psi(i)), 0; -sin(psi(i)), cos(psi(i)), 0; 0, 0, 1];
+    T0 = R1*R2*R3;
+    Tn = [cos(lambda(i)) -sin(lambda(i)) 0; sin(lambda(i)) cos(lambda(i)) 0; 0 0 1];
+    TI = Tn*T0*TI0;
+    THETA(i) = -asin(TI(1,3));
+    PSI(i) = acos( TI(1,1)/cos(THETA(i)) );
+    PHI(i) = acos( TI(3,3)/cos(THETA(i)) );
+end
+% figure(2)
+plot(sim.tout, rad2deg(PHI), sim.tout, rad2deg(PHI_des)*ones(size(sim.tout)),'LineWidth', 1)
+hold on
+plot(t1, rad2deg(PHI1), 'k--')
+legend('Roll angle', 'Desired roll angle', 'Uncontrolled roll angle')
+% figure(3)
+% plot(sim.tout, rad2deg(THETA),'LineWidth', 1)
+% figure(4)
+% plot(sim.tout, rad2deg(PSI),'LineWidth', 1)
+
+% Averages
+[~,maxind] = findpeaks(lambda); % Find the local maxima of lambda 
+maxind = [1;maxind];
+mean_t = zeros(length(maxind)-1,1);
+mean_THETA = zeros(length(maxind)-1,1);
+
+for i = 1:(length(maxind)-1)
+    mean_t(i) = mean(sim.tout(maxind(i):maxind(i+1)));
+    mean_THETA(i) = mean(PHI(maxind(i):maxind(i+1)));
+end
+
+figure(2)
+plot(sim.tout,rad2deg(PHI_des)*ones(size(sim.tout)), mean_t, rad2deg(mean_THETA), 'LineWidth',1.5);
+hold on
+plot(mean_t1, rad2deg(mean_PHI1), 'k--','LineWidth', 0.5)
+xlim([0, sim.tout(end)])
+legend('Desired angle', 'Avg Actual angle', 'Avg Uncontrolled angle - natural trajectory', 'FontSize', 11)
+xlabel('Time [s]')
+ylabel('Roll angle \Phi [deg]')
+
+s = abs(max(abs(mean_THETA)) - PHI_des);
+fprintf('\nThe maximum overshoot is %f degrees \n', rad2deg(s))
+
+%% Plot roll angle and desired pitch angle % da rimuovere in versione finale, serve solo come prova 
+close all
+clc
+THETA_des = 5*ones(length(sim.tout),1);
+
+phi = sim.EulAng(:,1);
+theta = sim.EulAng(:,2);
+psi = sim.EulAng(:,3);
+THETA = zeros(size(phi));
+PHI = zeros(size(phi));
+lambda = sim.lambda;
+load('PHI_natural')
+for i = 1:length(sim.tout)
+    R1 = [1, 0, 0; 0, cos(phi(i)), sin(phi(i)); 0, -sin(phi(i)), cos(phi(i))];
+    R2 = [cos(theta(i)), 0, -sin(theta(i)); 0, 1, 0; sin(theta(i)), 0, cos(theta(i))];
+    R3 = [cos(psi(i)), sin(psi(i)), 0; -sin(psi(i)), cos(psi(i)), 0; 0, 0, 1];
+    T0 = R1*R2*R3;
+    Tn = [cos(lambda(i)) -sin(lambda(i)) 0; sin(lambda(i)) cos(lambda(i)) 0; 0 0 1];
+    TI = Tn*T0*TI0;
+    THETA(i) = -asin(TI(1,3));
+    PSI(i) = acos( TI(1,1)/cos(THETA(i)) );
+    PHI(i) = acos( TI(3,3)/cos(THETA(i)) );
+end
+% figure(2)
+plot(sim.tout, rad2deg(THETA), sim.tout, (THETA_des),'LineWidth', 1)
+hold on
+% plot(t1, rad2deg(PHI1), 'k--')
+% legend('Roll angle', 'Desired roll angle', 'Uncontrolled roll angle')
+% figure(3)
+% plot(sim.tout, rad2deg(THETA),'LineWidth', 1)
+% figure(4)
+% plot(sim.tout, rad2deg(PSI),'LineWidth', 1)
+
+% Averages
+[~,maxind] = findpeaks(lambda); % Find the local maxima of lambda 
+maxind = [1;maxind];
+mean_t = zeros(length(maxind)-1,1);
+mean_THETA = zeros(length(maxind)-1,1);
+
+for i = 1:(length(maxind)-1)
+    mean_t(i) = mean(sim.tout(maxind(i):maxind(i+1)));
+    mean_THETA(i) = mean(THETA(maxind(i):maxind(i+1)));
+end
+figure(2)
+plot(sim.tout,THETA_des, mean_t, rad2deg(mean_THETA), 'LineWidth',1.5);
+% hold on
+% plot(mean_t1, rad2deg(mean_PHI1), 'k--','LineWidth', 0.5)
+xlim([0, sim.tout(end)])
+% legend('Desired angle', 'Avg Actual angle', 'Avg Uncontrolled angle - natural trajectory', 'FontSize', 11)
+% xlabel('Time [s]')
+% ylabel('Roll angle \Phi [deg]')
+
+% s = abs(max(abs(mean_THETA)) - PHI_des);
+% fprintf('\nThe maximum overshoot is %f degrees \n', rad2deg(s))
+
+%% Energy computation test
+% EW = sim.EW; % Wind energy
+% ED = sim.ED; % Aerodynamic energy
+% U = sim.U(:,:);
+% normU = vecnorm(U);
+% R_inertial = sim.R_inertial(:,:);
+% 
+% plot(sim.tout, EW + ED - 1/2*m*normU'.^2 - m*g*R_inertial(3,:)')
+% hold on
+% plot(sim.tout, EW)
+
+%% Plot results - cut when close to return point
+
+phi = sim.EulAng(:,1);
+theta = sim.EulAng(:,2);
+psi = sim.EulAng(:,3);
+R_inertial = sim.R_inertial(:,:);
+U = sim.U(:,:)';
+normU = vecnorm(U');
+
+[~,ind] = min((vecnorm(R_inertial(1:2,ceil(length(R_inertial)/2):end),2)));
+
+ind = ceil(length(R_inertial)/2) + ind - 1;
+R_inertial = R_inertial(:,1:ind);
+t = sim.tout(1:ind);
+
+% Plots
+figure(1)
+plot(t, R_inertial(3,:), 'k-')
+xlabel('Time [s]')
+ylabel('Altitude [m]')
+
+figure(2)
+plot(R_inertial(1,1),R_inertial(2,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), 'ro')
+xlabel('Displacement along x [m]')
+ylabel('Displacement along y [m]')
+title('Trajectory - top view (xy plane)')
+axis equal
+% xlim([-10 10])
+% ylim([-5 18])
+
+figure(3)
+plot(R_inertial(1,1),R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(3,end), 'ro')
+xlabel('Displacement along x [m]')
+ylabel('Displacement along z [m]')
+title('Trajectory - xz plane')
+axis equal
+% xlim([-10 10])
+% ylim([-2 8])
+
+figure(4)
+plot(R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(2,end), R_inertial(3,end), 'ro')
+xlabel('Displacement along y [m]')
+ylabel('Displacement along z [m]')
+title('Trajectory - yz plane')
+axis equal
+% xlim([-5 18])
+% ylim([-2 8])
+
+figure(5)
+plot(sim.tout, normU, 'k-')
+xlabel('Time [s]')
+ylabel('Speed U [m/s]')
+% xlim([0 5])
+% ylim([0 25])
+
+% figure(6)
+% plot(sim.tout, sim.omega(:,3),'k')
+
+figure(6)
+plot3(R_inertial(1,1), R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), R_inertial(3,end), 'ro')
+title('3D Trajectory')
+grid on
+
+%% Plot control results
+clear
+clc
+close all
+
+prompt = ['Enter 1 to visualize controlled trajectory with disturbance of a wind blowing to the west\n' ...
+    'Enter 2 to visualize controlled trajectory with disturbance of a wind blowing to the south\n' ...
+    'Input: '];
+answer = input(prompt);
+load('Returning_Traj_4wings.mat')
+x_des = R_inertial1(:,1);
+y_des = R_inertial1(:,2);
+
+if answer == 1
+    load('Control_-wx.mat');
+    load('Wind_wx_4wings.mat');
+else 
+    if answer == 2
+        load('Control_-wy.mat');
+        load('Wind_wyy_4wings.mat');
+    else 
+        printf('\nInput Error\n')
+    end
+end
+
+x_w = R_inertial_w(1,:);
+y_w = R_inertial_w(2,:);
+
+% Plots
+figure(1)
+plot(t, R_inertial(3,:), 'k-')
+xlabel('Time [s]')
+ylabel('Altitude [m]')
+
+figure(2)
+plot(R_inertial(1,1),R_inertial(2,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), 'ro')
+xlabel('Displacement along x [m]')
+ylabel('Displacement along y [m]')
+title('Trajectory - top view (xy plane)')
+hold on
+plot(x_des,y_des, 'b--');
+hold on
+plot(x_w, y_w, 'r--');
+legend('', 'Controlled trajectory', '', 'Desired trajectory','Uncontrolled trajectory', 'Location','southeast','FontSize',11)
+axis equal
+% xlim([-10 10])
+% ylim([-5 18])
+
+figure(3)
+plot(R_inertial(1,1),R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(3,end), 'ro')
+xlabel('Displacement along x [m]')
+ylabel('Displacement along z [m]')
+title('Trajectory - xz plane')
+axis equal
+% xlim([-10 10])
+% ylim([-2 8])
+
+figure(4)
+plot(R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(2,end), R_inertial(3,end), 'ro')
+xlabel('Displacement along y [m]')
+ylabel('Displacement along z [m]')
+title('Trajectory - yz plane')
+axis equal
+% xlim([-5 18])
+% ylim([-2 8])
+
+figure(5)
+plot(t, normU, 'k-')
+xlabel('Time [s]')
+ylabel('Speed U [m/s]')
+% xlim([0 5])
+% ylim([0 25])
+
+% figure(6)
+% plot(t, sim.omega(:,3),'k')
+
+figure(6)
+plot3(R_inertial(1,1), R_inertial(2,1), R_inertial(3,1), 'go', ...
+    R_inertial(1,:), R_inertial(2,:), R_inertial(3,:), 'k-', ...
+    R_inertial(1,end), R_inertial(2,end), R_inertial(3,end), 'ro')
+title('3D Trajectory')
+grid on
